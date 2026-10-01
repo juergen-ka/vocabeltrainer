@@ -36,8 +36,7 @@
   .dim { color: #718096; font-size: 14px; }
   .meta { color: #718096; font-size: 13px; margin-bottom: 14px; }
   .ru { font-size: 30px; font-weight: 700; margin: 8px 0 4px; }
-  .de-reveal { font-size: 24px; font-weight: 600; margin-top: 16px; color: #1a56db; }
-  .info { color: #718096; font-size: 15px; margin-bottom: 8px; }
+.info { color: #718096; font-size: 15px; margin-bottom: 8px; }
   .stats { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
   .stat { flex: 1; min-width: 90px; background: #f2f4f8; border-radius: 12px; padding: 12px 8px; text-align: center; }
   .stat.accent { background: #e3edff; } .stat.good { background: #e6f6ec; }
@@ -80,9 +79,7 @@
   .field-label { display:block; font-size:13px; color:#4a5568; margin-top:8px; }
   .warn li, .failed li { margin-left: 20px; margin-bottom: 4px; font-size: 14px; }
   .warn { color: #b7791f; } .failed b { color: #c53030; }
-  table.params { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.params th, table.params td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-  hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
   #nav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
     display: flex; background: #fff; border-top: 1px solid #e2e8f0;
@@ -364,7 +361,7 @@ function buildExport(){
 const LS_KEY = "vokabeltrainer-v1";
 function defaultState(){
   return { fileName: null, vocab: [], progress: {}, params: [0, 1, 3, 8, 30, 90, 180],
-           settings: { paket: 10, umfang: "all", dir: "ru2de", stage: 0, trainMode: "written", editorSort: "stage", editorSortDir: "asc" }, warnings: [] };
+           settings: { paket: 10, umfang: "all", dir: "ru2de", stage: 0, trainMode: "written", testMode: "written", editorSort: "stage", editorSortDir: "asc" }, warnings: [] };
 }
 function loadState(){
   try {
@@ -635,7 +632,7 @@ function renderSetup(v, mode){
     + "<h3>Richtung</h3>"
     + '<label class="radio"><input type="radio" name="dir" value="ru2de"' + (dir === "ru2de" ? " checked" : "") + "> Russisch &#8594; Deutsch</label>"
     + '<label class="radio"><input type="radio" name="dir" value="de2ru"' + (dir === "de2ru" ? " checked" : "") + "> Deutsch &#8594; Russisch</label>"
-    + (mode === "train" ? '<div id="train-mode-box"><h3>Trainingsmodus (Deutsch → Russisch)</h3><label class="radio"><input type="radio" name="trainMode" value="written"' + (((st.trainMode || "written") === "written" || dir === "ru2de") ? " checked" : "") + '> Schriftlich</label><label class="radio"><input type="radio" id="hangman-mode" name="trainMode" value="hangman"' + (st.trainMode === "hangman" && dir === "de2ru" ? " checked" : "") + (dir === "ru2de" ? " disabled" : "") + '> Hangman</label></div>' : "")
+    + ('<div id="session-mode-box"><h3>' + (mode === "test" ? "Testmodus" : "Trainingsmodus") + ' (Deutsch → Russisch)</h3><label class="radio"><input type="radio" name="sessionMode" value="written"' + ((((mode === "test" ? st.testMode : st.trainMode) || "written") === "written" || dir === "ru2de") ? " checked" : "") + '> Schriftlich</label><label class="radio"><input type="radio" id="hangman-mode" name="sessionMode" value="hangman"' + ((mode === "test" ? st.testMode : st.trainMode) === "hangman" && dir === "de2ru" ? " checked" : "") + (dir === "ru2de" ? " disabled" : "") + '> Hangman</label></div>')
     + '<p class="dim">Auswahl: <b>' + stageLabel + '</b></p>'
     + "<h3>Umfang</h3>"
     + '<label class="radio"><input type="radio" name="umfang" value="all"' + (umfang === "all" ? " checked" : "") + "> Alle passenden Vokabeln (" + dueSelected + " fällig)</label>"
@@ -652,24 +649,25 @@ function renderSetup(v, mode){
   pn.addEventListener("click", selectPaket);
   pn.addEventListener("input", selectPaket);
 
-  if (mode === "train") document.querySelectorAll('input[name="dir"]').forEach(function(r){ r.addEventListener("change", function(){ const h=document.getElementById("hangman-mode"); h.disabled=this.value==="ru2de"; if(h.disabled&&h.checked) document.querySelector('input[name="trainMode"][value="written"]').checked=true; }); });
+  document.querySelectorAll('input[name="dir"]').forEach(function(r){ r.addEventListener("change", function(){ const h=document.getElementById("hangman-mode"); if(!h)return; h.disabled=this.value==="ru2de"; if(h.disabled&&h.checked) document.querySelector('input[name="sessionMode"][value="written"]').checked=true; }); });
   document.getElementById("back").onclick = function(){ go("home"); };
   document.getElementById("start").onclick = function(){
     const chosenStage = stageSel;
     const useAll = document.querySelector('input[name="umfang"]:checked').value === "all";
     const chosenDir = document.querySelector('input[name="dir"]:checked').value;
-    const tm = document.querySelector('input[name="trainMode"]:checked');
-    const chosenTrainMode = (mode === "train" && chosenDir === "de2ru" && tm) ? tm.value : "written";
+    const sm = document.querySelector('input[name="sessionMode"]:checked');
+    const chosenSessionMode = (chosenDir === "de2ru" && sm) ? sm.value : "written";
     const n = parseInt(pn.value, 10);
     if (isFinite(n) && n > 0) S.settings.paket = n;
     S.settings.umfang = useAll ? "all" : "paket";
     S.settings.dir = chosenDir;
-    if (mode === "train") S.settings.trainMode = chosenTrainMode;
+    if (mode === "train") S.settings.trainMode = chosenSessionMode;
+    if (mode === "test") S.settings.testMode = chosenSessionMode;
     S.settings.stage = chosenStage;
     save();
     const items = pickItems(useAll, chosenStage);
     if (items.length === 0){ alert("Für diese Auswahl sind keine Vokabeln fällig."); return; }
-    sess = { mode: mode, items: items, idx: 0, correct: 0, wrong: 0, failed: [], done: false, dir: chosenDir, trainMode: (mode === "train" ? chosenTrainMode : "written") };
+    sess = { mode: mode, items: items, idx: 0, correct: 0, wrong: 0, failed: [], done: false, dir: chosenDir, sessionMode: chosenSessionMode };
     render();
   };
 }
@@ -677,8 +675,8 @@ function renderSetup(v, mode){
 function renderSession(v){
   if (sess.idx >= sess.items.length){ renderSummary(v); return; }
   const it = sess.items[sess.idx];
-  if (sess.mode === "test") renderTestCard(v, it);
-  else if (sess.dir === "de2ru" && sess.trainMode === "hangman") renderHangmanCard(v, it);
+  if (sess.dir === "de2ru" && sess.sessionMode === "hangman") renderHangmanCard(v, it);
+  else if (sess.mode === "test") renderTestCard(v, it);
   else renderTrainCard(v, it);
 }
 
@@ -781,13 +779,13 @@ function hangmanMask(answer, pos){ return Array.from(answer).map((ch,i)=>/[\p{L}
 function renderHangmanCard(v,it){
   const answer=answerOf(it,'de2ru'); let pos=0, errors=0, finished=false;
   const keys=shuffle(hangmanChars(answer).slice());
-  v.innerHTML='<div class="card"><div class="meta">Training · Hangman · DE → RU · Vokabel '+(sess.idx+1)+' von '+sess.items.length+'</div><div class="ru">'+esc(it.de)+'</div>'+(it.deInfo?'<div class="info">'+esc(it.deInfo)+'</div>':'')+'<div id="hang-answer" class="hang-answer"></div><div class="dim">Fehler: <span id="hang-errors">0</span> / 4</div><div id="hang-keys" class="hang-keys"></div><div id="fb"></div><button class="btn ghost" id="abort">Abbrechen</button></div>';
+  v.innerHTML='<div class="card"><div class="meta">'+(sess.mode==='test'?'Test':'Training')+' · Hangman · DE → RU · Vokabel '+(sess.idx+1)+' von '+sess.items.length+'</div><div class="ru">'+esc(it.de)+'</div>'+(it.deInfo?'<div class="info">'+esc(it.deInfo)+'</div>':'')+'<div id="hang-answer" class="hang-answer"></div><div class="dim">Fehler: <span id="hang-errors">0</span> / 4</div><div id="hang-keys" class="hang-keys"></div><div id="fb"></div><button class="btn ghost" id="abort">Abbrechen</button></div>';
   const out=document.getElementById('hang-answer'), box=document.getElementById('hang-keys'), fb=document.getElementById('fb');
   function advanceAuto(){ while(pos<answer.length && !/[\p{L}\p{N}]/u.test(answer[pos])) pos++; }
   function draw(){ out.textContent=hangmanMask(answer,pos); box.innerHTML=''; keys.forEach(ch=>{const b=document.createElement('button');b.className='btn hang-key';b.textContent=ch;b.onclick=()=>choose(ch);box.appendChild(b);}); }
-  function done(ok){ finished=true; box.querySelectorAll('button').forEach(b=>b.disabled=true); if(ok){sess.correct++;fb.innerHTML='<div class="fb good">Richtig! '+errors+' Fehler.</div>';}else{sess.wrong++;sess.failed.push(it);fb.innerHTML='<div class="fb bad">Leider falsch. Mehr als 4 Fehler.</div><div class="fb-answer">Richtig wäre: <b>'+esc(answer)+'</b></div><button class="btn" id="override">Trotzdem korrekt</button>';}
+  function done(ok){ finished=true; box.querySelectorAll('button').forEach(b=>b.disabled=true); if(ok){if(sess.mode==='test')recordSuccess(it);sess.correct++;fb.innerHTML='<div class="fb good">Richtig! '+errors+' Fehler.</div>';}else{if(sess.mode==='test')recordFail(it);sess.wrong++;sess.failed.push(it);fb.innerHTML='<div class="fb bad">Leider falsch. Mehr als 4 Fehler.</div><div class="fb-answer">Richtig wäre: <b>'+esc(answer)+'</b></div><button class="btn" id="override">Trotzdem korrekt</button>';}
     fb.innerHTML+='<button class="btn primary" id="next">'+(sess.idx+1>=sess.items.length?'Ergebnis':'Weiter')+'</button>';
-    document.getElementById('next').onclick=()=>{sess.idx++;sess.done=false;render();}; const ov=document.getElementById('override');if(ov)ov.onclick=()=>{sess.wrong--;sess.correct++;const p=sess.failed.lastIndexOf(it);if(p>=0)sess.failed.splice(p,1);fb.innerHTML='<div class="fb good">Als korrekt gewertet.</div><button class="btn primary" id="next2">Weiter</button>';document.getElementById('next2').onclick=()=>{sess.idx++;render();};}; }
+    if(sess.mode==='test')save(); document.getElementById('next').onclick=()=>{sess.idx++;sess.done=false;render();}; const ov=document.getElementById('override');if(ov)ov.onclick=()=>{if(sess.mode==='test'){const pr=S.progress[vkey(it)];if(pr&&pr.retry)delete pr.retry;recordSuccess(it);save();}sess.wrong--;sess.correct++;const p=sess.failed.lastIndexOf(it);if(p>=0)sess.failed.splice(p,1);fb.innerHTML='<div class="fb good">Als korrekt gewertet.</div><button class="btn primary" id="next2">Weiter</button>';document.getElementById('next2').onclick=()=>{sess.idx++;render();};}; }
   function choose(ch){ if(finished)return; advanceAuto(); if(ch===answer[pos]){pos++;advanceAuto();draw();if(pos>=answer.length)done(errors<=4);}else{errors++;document.getElementById('hang-errors').textContent=errors;if(errors>4)done(false);} }
   advanceAuto(); draw(); if(pos>=answer.length)done(true); document.getElementById('abort').onclick=()=>{if(confirm('Sitzung abbrechen?'))go('home');};
 }
