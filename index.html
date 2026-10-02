@@ -93,7 +93,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </style>
 </head>
 <body>
-<header>Vokabeltrainer</header>
+<header>Vokabeltrainer <span style="font-size:12px;font-weight:500;opacity:.85">Version 3 · ohne Service Worker</span></header>
 <main id="view"></main>
 <nav id="nav">
   <button data-view="home">&#8962;<br>Start</button>
@@ -919,9 +919,6 @@ function initUI(){
     b.onclick = function(){ go(b.getAttribute("data-view")); };
   });
   render();
-  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
-    navigator.serviceWorker.register("sw.js").catch(function(){});
-  }
 }
 if (typeof document !== "undefined") initUI();
 
