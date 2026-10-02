@@ -93,7 +93,7 @@ hr { border: none; border-top: 1px solid #e2e8f0; margin: 18px 0; }
 </style>
 </head>
 <body>
-<header>Vokabeltrainer <span style="font-size:12px;font-weight:500;opacity:.85">Version 3 · ohne Service Worker</span></header>
+<header>Vokabeltrainer <span style="font-size:12px;font-weight:500;opacity:.85">Version 4 · Datensicherung</span></header>
 <main id="view"></main>
 <nav id="nav">
   <button data-view="home">&#8962;<br>Start</button>
@@ -825,11 +825,14 @@ function renderFile(v){
     + (S.fileName ? "<p>Aktive Datei: <b>" + esc(S.fileName) + "</b> (" + st.total + " Vokabeln)</p>" : "<p>Noch keine Datei importiert.</p>")
     + '<label class="btn primary">Excel-Datei importieren<input type="file" id="import-input" accept=".xlsx" hidden></label>'
     + (st.total ? '<button class="btn" id="export">Aktualisierte Excel-Datei herunterladen<br><small>Lernstufe in Spalte G, Erreichungsdatum in Spalte H</small></button><button class="btn primary" id="edit-vocab">Vokabeln bearbeiten</button>' : "")
+    + '<hr><h3>App-Daten übertragen</h3><p class="dim">Sichert Vokabeln, Lernstand und Einstellungen.</p><button class="btn" id="backup-app">App-Daten sichern</button><label class="btn">App-Daten wiederherstellen<input type="file" id="restore-app" accept=".json,application/json" hidden></label>'
     + "</div>" + warningsHtml();
   bindImport(v);
   const ex = document.getElementById("export");
   if (ex) ex.onclick = doExport;
   const ed = document.getElementById("edit-vocab"); if(ed) ed.onclick=function(){ go("vocabEdit"); };
+  document.getElementById("backup-app").onclick=backupAppData;
+  document.getElementById("restore-app").onchange=function(){ if(this.files.length) restoreAppData(this.files[0]); };
 }
 
 
@@ -896,6 +899,19 @@ function renderSettings(v){
   v.innerHTML = '<div class="card"><h2>Einstellungen</h2><p><label>Standard-Paketgröße: <input type="number" id="paket" min="1" max="999" value="'+(S.settings.paket||10)+'" style="width:4.5em"></label></p>'+waits+'<h3>Standard-Sortierung im Vokabeleditor</h3><select id="default-editor-sort"><option value="stage" '+(es==='stage'?'selected':'')+'>nach Lernstufe</option><option value="de" '+(es==='de'?'selected':'')+'>alphabetisch nach deutscher Vokabel</option><option value="ru" '+(es==='ru'?'selected':'')+'>alphabetisch nach russischer Vokabel</option><option value="date" '+(es==='date'?'selected':'')+'>nach Erreichungsdatum</option></select><select id="default-editor-dir"><option value="asc" '+(ed==='asc'?'selected':'')+'>aufsteigend</option><option value="desc" '+(ed==='desc'?'selected':'')+'>absteigend</option></select><button class="btn primary" id="save">Speichern</button><hr><h3>Gefahrenzone</h3><button class="btn danger" id="reset">Alle App-Daten löschen</button></div>';
   document.getElementById("save").onclick=function(){ const n=parseInt(document.getElementById("paket").value,10); if(isFinite(n)&&n>0)S.settings.paket=n; document.querySelectorAll(".wait-days").forEach(function(el){const x=parseInt(el.value,10);if(isFinite(x)&&x>=0)S.params[Number(el.dataset.i)]=x;}); S.settings.editorSort=document.getElementById('default-editor-sort').value; S.settings.editorSortDir=document.getElementById('default-editor-dir').value; save(); alert("Gespeichert."); };
   document.getElementById("reset").onclick=function(){if(confirm("Wirklich alle Vokabeln und Lernstände in der App löschen? (Die Excel-Datei bleibt unberührt.)")){S=defaultState();save();go("home");}};
+}
+function backupAppData(){
+  const payload={format:"vokabeltrainer-backup",version:1,savedAt:new Date().toISOString(),state:S};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="vokabeltrainer_backup_"+todayStr()+".json";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(a.href);},5000);
+}
+function restoreAppData(file){
+  const r=new FileReader(); r.onload=function(){try{
+    const x=JSON.parse(r.result); if(!x||x.format!=="vokabeltrainer-backup"||x.version!==1||!x.state||!Array.isArray(x.state.vocab))throw new Error("Keine gültige Vokabeltrainer-Sicherung.");
+    if(!confirm("Vorhandene App-Daten durch diese Sicherung ersetzen?"))return;
+    const d=defaultState(); x.state.settings=Object.assign(d.settings,x.state.settings||{}); S=Object.assign(d,x.state); save(); alert("App-Daten wurden wiederhergestellt."); go("home");
+  }catch(e){alert("Wiederherstellung fehlgeschlagen: "+e.message);}}; r.readAsText(file);
 }
 function bindImport(root){
   const inp = root.querySelector("#import-input");
